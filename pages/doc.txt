@@ -1,0 +1,16 @@
+required arguments:
+
+login.ts : {
+    arg: email
+    response: token
+}
+
+signup: {
+    arg: email
+    response: otp
+}
+
+verify-otp : {
+    arg: otp
+    response: token
+}
