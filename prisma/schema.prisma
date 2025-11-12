@@ -17,5 +17,16 @@ model User {
   id      Int @id @default(autoincrement())
   email   String @unique
   name    String? @default("user")
+  oAuths  UserOAuth?
+}
+
+model UserOAuth {
+  id        Int    @id @default(autoincrement())
+  token  String
+  refresh_token String
+  expiry  String
+  scopes String[]
+  userId    Int @unique
+  user      User   @relation(fields: [userId], references: [id])
 }
 

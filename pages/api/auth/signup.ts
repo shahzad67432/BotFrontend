@@ -1,3 +1,9 @@
+
+import { sendEmail } from '@/lib/email-service';
+import { sign } from 'crypto';
+import { NextApiRequest, NextApiResponse } from 'next';
+import prisma from '@/lib/prisma';
+
 // OTP storage type
 type OTPRecord = {
   email: string;
@@ -31,12 +37,20 @@ async function sendOTPEmail(email: string, otp: string) {
   });
 }
 
-
-import { sendEmail } from '@/lib/email-service';
-import { NextApiRequest, NextApiResponse } from 'next';
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === 'POST') {
         const email = req.body.email;
+        const SignType = req.body.SignType;
+
+        if(SignType === "login"){
+          await prisma.user.findUnique({ where: { email } }).then((user:any) => {
+              if (!user) {
+                  return res.json({ message: "User not found" });
+              }
+          }).catch((error:any) => {
+              console.error("Error finding user:", error);
+          });
+        }
         const otp = generateOTP();
         otpStorage[email] = { email, otp, expiresAt: new Date(Date.now() + 5 * 60000) }; // 5 minutes expiry
 
