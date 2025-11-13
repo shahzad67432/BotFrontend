@@ -1,8 +1,9 @@
 "use client";
+import { gmailConnectionExpiryRequest } from "@/actions";
 import axios from "axios";
 import Image from "next/image";
 import { ReadonlyURLSearchParams, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 
 export default function Home() {
   const searchParams: any = useSearchParams();
@@ -11,13 +12,45 @@ export default function Home() {
   const recognitionRef = useRef<any>(null);
   const [humanInput, setHumanInput] = useState("");
   const [botResponse, setBotResponse] = useState([""]);
-  
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
+
+  const checkedRef = useRef(false);
+
   const jwt = localStorage.getItem("auth_token");
   useEffect(() => {
     if (!jwt) {
       window.location.href = `http://localhost:3000/login`;
     }
   }, [jwt]);
+
+  useEffect(() => {
+    
+    if (checkedRef.current) return; // reduce duplicate calls
+    checkedRef.current = true;
+
+    const checkGmailConnection = async () => {
+      const expiryStr = localStorage.getItem("gmail_token_expiry");
+      const now = Date.now();
+
+      if (expiryStr && now < parseInt(expiryStr)) {
+        // token still valid, no backend call needed
+        setIsGmailConnected(true);
+        return;
+      }
+      // otherwise, call backend once
+      const token = localStorage.getItem("auth_token");
+      if (!token) return;
+
+      try {
+        const expiry = await gmailConnectionExpiryRequest(token);
+        localStorage.setItem("gmail_token_expiry", new Date(expiry).getTime().toString());
+        setIsGmailConnected(true);
+      } catch (err) {
+        console.error("Failed to check Gmail connection:", err);
+      }
+    };
+    checkGmailConnection();
+  }, []);
 
   useEffect(() => {
     if (connected === "gmail") {
@@ -29,7 +62,7 @@ export default function Home() {
     }
   }, [connected]);
 
-  const isGmailConnected = true;
+
 
   const handleConnectGmail = async () => {
     if (connected === "gmail" || isGmailConnected) {
