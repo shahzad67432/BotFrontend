@@ -18,6 +18,7 @@ model User {
   email   String @unique
   name    String? @default("user")
   oAuths  UserOAuth?
+  messages messages[]
 }
 
 model UserOAuth {
@@ -30,3 +31,11 @@ model UserOAuth {
   user      User   @relation(fields: [userId], references: [id])
 }
 
+model messages {
+  id        Int      @id @default(autoincrement())
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}

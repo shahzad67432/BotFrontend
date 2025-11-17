@@ -50,7 +50,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)"],
+        outfit: ["var(--font-outfit)"],
+        pixel: ["var(--font-pixelify)"],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -2,3 +2,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* Add custom Mauline font */
+@font-face {
+  font-family: 'Mauline';
+  src: url('/fonts/Mauline.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Apply globally to body or root */
+/* body {
+  font-family: 'Mauline', sans-serif;
+} */

@@ -30,3 +30,34 @@ export const gmailConnectionExpiryRequest = async (token: string) => {
     throw new Error("Invalid or expired session");
   }
 };
+
+
+export const getUserMessages = async (token: string, page: number) => {
+  try {
+    // Verify token integrity
+    const decoded = jwt.verify(token, JWT_SECRET) as { email: string };
+    const email = decoded.email;
+    
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!user) throw new Error("User not found");
+
+    const Messages_Per_Page = 20;
+
+    const messages = await prisma.messages.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * Messages_Per_Page,
+      take: Messages_Per_Page,
+    });
+
+
+    return messages.reverse();
+  } catch (error: any) {
+    console.error("Error retrieving user messages:", error);
+    throw new Error("Invalid or expired session");
+  }
+};
