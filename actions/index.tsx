@@ -35,6 +35,7 @@ export const gmailConnectionExpiryRequest = async (token: string) => {
 export const getUserMessages = async (token: string, page: number) => {
   try {
     // Verify token integrity
+    console.log("again fetching the messages");
     const decoded = jwt.verify(token, JWT_SECRET) as { email: string };
     const email = decoded.email;
     
