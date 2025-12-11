@@ -49,7 +49,7 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
       <div className="relative w-full max-w-md">
         {/* Logo/Brand Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 cursor-pointer" onClick={()=>{window.location.href = '/';}}>
             <Image src="/logo.png" alt="Logo" width={64} height={64} />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
