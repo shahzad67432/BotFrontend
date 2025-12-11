@@ -45,7 +45,7 @@ EMAIL_PASSWORD=""`;
         onClick={() => setActiveSection(section.id)}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
           activeSection === section.id
-            ? 'bg-purple-100 text-purple-700 font-semibold'
+            ? 'text-purple-700 font-semibold bg-gradient-to-b from-white to-gray-50 border-2 border-gray-200 shadow-[0_3px_0_0_rgba(226,134,248,0.3)] hover:shadow-[0_2px_0_0_rgba(226,134,248,0.3)] hover:translate-y-[1px] active:shadow-none active:translate-y-[3px] transition-all duration-100'
             : 'text-gray-600 hover:bg-gray-100'
         }`}
       >

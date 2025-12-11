@@ -4,6 +4,7 @@ import { Pixelify_Sans } from "next/font/google";
 import "./globals.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Providers } from "./provider";
+import { Toaster } from "sonner";
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -34,6 +35,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
+          <Toaster position="top-right" richColors />
           {children}
         </Providers>
 

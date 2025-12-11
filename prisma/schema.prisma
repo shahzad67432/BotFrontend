@@ -14,12 +14,28 @@ datasource db {
 }
 
 model User {
-  id      Int @id @default(autoincrement())
-  email   String @unique
-  name    String? @default("user")
-  credits Int @default(10)
-  oAuths  UserOAuth?
-  messages messages[]
+  id           Int            @id @default(autoincrement())
+  email        String         @unique
+  name         String?        @default("user")
+  credits      Int            @default(10)
+  oAuths       UserOAuth?
+  messages     messages[]
+  emailHistory EmailHistory[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt @default(now())
+}
+
+model EmailHistory {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiverEmail String
+  receiverName  String
+  emailType     String   
+  status        String   @default("sent")
+  sentAt        DateTime @default(now())
+
+  @@index([userId])
 }
 
 model UserOAuth {

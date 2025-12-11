@@ -3,12 +3,14 @@ import { getUserMessages, gmailConnectionExpiryRequest } from "@/actions";
 import axios, { create, get } from "axios";
 import { ArrowBigRight, ArrowRight, BarChart3, ChevronRight, Clock, Loader, Mail, MessageCircle, Send, Sparkles, X, Zap } from 'lucide-react';
 import Image from "next/image";
-import { ReadonlyURLSearchParams, useSearchParams } from 'next/navigation';
+import { ReadonlyURLSearchParams, useRouter, useSearchParams } from 'next/navigation';
 import { use, useEffect, useMemo, useRef, useState } from "react";
 
 import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import NeuralNetworkButton from "@/app/button";
 import { HeaderPage } from "@/app/Header";
+import { toast } from "sonner";
+import { profile } from "console";
 
 type ChatMessage = {
   id: number;
@@ -32,6 +34,8 @@ export default function Home() {
   const [expandedFeature, setExpandedFeature] = useState<null | 'compose' | 'insights' | 'history'>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
   const queryClient = useQueryClient();
+
+  const router = useRouter();
 
   const checkedRef = useRef(false);
 
@@ -208,16 +212,76 @@ export default function Home() {
   const handleSendingGmail = async (speechText: string) => {
     const token = localStorage.getItem("auth_token");
     if (!token) return alert("No auth token found");
+    const profile: any = queryClient.getQueryData(['userProfile']);
 
-    try {
-      await axios.post("http://127.0.0.1:5000/send-email", {
-        token,
-        speechText
-      });
-      alert("Email sent successfully!");
-    } catch (error) {
-      console.error("Error sending email:", error);
+     try {
+    // Pre-flight credit check
+    if (!profile) {
+      toast.error("Unable to load profile data");
+      return;
     }
+
+    if (profile.credits <= 0) {
+      toast.error("No credits remaining!", {
+        description: "Purchase more credits to continue sending emails",
+        action: {
+          label: "Buy Credits",
+          onClick: () => router.push('/profile')
+        }
+      });
+      return;
+    }
+
+    // Low credit warning
+    if (profile.credits <= 5) {
+      toast.warning(`Only ${profile.credits} credits left!`, {
+        description: "Consider purchasing more credits soon"
+      });
+    }
+
+    // Send email with loading state
+    const loadingToast = toast.loading("Sending email...");
+    
+    const response = await axios.post("http://127.0.0.1:5000/send-email", {
+      token,
+      speechText
+    });
+
+    toast.dismiss(loadingToast);
+    toast.success("Email sent successfully!", {
+      description: `${profile.credits - 1} credits remaining`
+    });
+    
+    // Optimistic update for instant UI feedback
+    queryClient.setQueryData(["userProfile"], (old: any) => ({
+      ...old,
+      credits: old.credits - 1
+    }));
+    
+    // Then invalidate to ensure consistency
+    await queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+    
+    router.push('/profile');
+    
+  } catch (error: any) {
+    console.error("Error sending email:", error);
+    
+    if (error.response?.status === 403) {
+      toast.error("Insufficient credits!", {
+        description: "Your credits have been used up",
+        action: {
+          label: "Buy More",
+          onClick: () => router.push('/profile')
+        }
+      });
+      // Force refetch in case of mismatch
+      await queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+    } else {
+      toast.error("Failed to send email", {
+        description: error.response?.data?.message || "Please try again"
+      });
+    }
+  }
   };
 
   const handleHumanMessage = async () => {
@@ -342,24 +406,6 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
 
         {/* header */}
         <HeaderPage />
-
-
-        {/* sending gmail logic */}
-        {/* <div className="flex flex-1 items-center justify-center gap-8 p-8">
-          <div className="flex flex-1 items-center justify-center">
-            <div onClick={handleConnectGmail} className="w-[100px] h-[100px] text-center bg-red-50 border-2 rounded-full p-2 flex items-center justify-center cursor-pointer hover:shadow-red-200 hover:transform-3d hover:animate-bounce ">{(connected === "gmail" || isGmailConnected) ? "Listen" : "Connect Gmail"}</div>
-          </div>
-          <div className="flex flex-1 bg-amber-50 p-4 rounded-2xl">
-            <h2>Transcribed Speech:</h2>
-            <p>{speech}</p>
-          </div>
-          <div>
-            <button onClick={() => handleSendingGmail(speech)} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Send Email</button>
-          </div>
-        </div> */}
-
-
-        {/* Main Content Container */}
 
         
 
