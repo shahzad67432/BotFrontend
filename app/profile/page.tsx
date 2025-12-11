@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getUserProfileData } from "../actions/profile";
 import { HeaderPage } from "../Header";
+import Web3CreditPurchase from "./Web3CreditPurchase";
 
 type EmailHistory = {
   id: number;
@@ -271,17 +272,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <button
-                disabled={profile?.credits !== 0}
-                className={`w-full py-3 rounded-xl font-semibold transition-all duration-100 flex items-center justify-center gap-2 border-2 ${
-                  profile?.credits === 0
-                    ? "bg-gradient-to-b from-[#cc39f5] to-[#b020e0] border-[#9010c0] shadow-[0_4px_0_0_rgba(144,16,192,0.8)] hover:shadow-[0_2px_0_0_rgba(144,16,192,0.8)] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] text-white"
-                    : "bg-gradient-to-b from-gray-100 to-gray-200 border-gray-300 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                <CreditCard size={18} />
-                Get More Credits
-              </button>
+              <Web3CreditPurchase profile={profile} onSuccess={() => {}} />
 
               {profile?.credits !== 0 && (
                 <p className="text-xs text-gray-500 text-center mt-2">
