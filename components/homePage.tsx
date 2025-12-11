@@ -1,7 +1,7 @@
 "use client";
 import { getUserMessages, gmailConnectionExpiryRequest } from "@/actions";
 import axios, { create, get } from "axios";
-import { ArrowBigRight, ArrowRight, BarChart3, ChevronRight, Clock, Loader, Mail, MessageCircle, Send, Sparkles, X, Zap } from 'lucide-react';
+import { ArrowBigRight, ArrowRight, BarChart3, CheckCircle, ChevronRight, Clock, Loader, Mail, MessageCircle, Send, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
 import Image from "next/image";
 import { ReadonlyURLSearchParams, useRouter, useSearchParams } from 'next/navigation';
 import { use, useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import NeuralNetworkButton from "@/app/button";
 import { HeaderPage } from "@/app/Header";
 import { toast } from "sonner";
 import { profile } from "console";
+import { getUserProfileData } from "@/app/actions/profile";
 
 type ChatMessage = {
   id: number;
@@ -46,11 +47,24 @@ export default function Home() {
   }, [messages]);
 
   const jwt = localStorage.getItem("auth_token");
+  
   useEffect(() => {
     if (!jwt) {
       window.location.href = `http://localhost:3000/login`;
     }
+
   }, [jwt]);
+
+  const { data: profile, isError} = useQuery<any>({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      if (!jwt) throw new Error('No token');
+      return await getUserProfileData(jwt);
+    },
+    enabled: !!jwt, // Only run when jwt exists
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+  })
 
   useEffect(() => {
     
@@ -398,64 +412,189 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
   };
 
 
+  const recentEmails = profile?.emailHistory?.slice(0, 3) || [];
+  const todayEmails = profile?.emailHistory?.filter(email => {
+    const emailDate = new Date(email.sentAt);
+    const today = new Date();
+    return emailDate.toDateString() === today.toDateString();
+  }).length || 0;
 
+    return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header - Placeholder for your HeaderPage component */}
+      <HeaderPage/>
 
-  return (
-    <>
-      <div className="min-h-screen flex flex-col relative">
-
-        {/* header */}
-        <HeaderPage />
-
-        
-
-          <div className="flex-1 flex flex-col justify-center">
-            <NeuralNetworkButton
-              onGmailConnect={handleConnectGmail}
-              onSendEmail={handleSendingGmail}
-              onStartListening={handleStartListening}
-              isGmailConnected={isGmailConnected}
-              isListening={speech.length > 0}
-              transcript={speech}
-            />
+      {/* Stats Bar */}
+      <div className="max-w-7xl mx-auto px-6 py-6 md:pt-10 hidden md:block">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Credits Card */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Available Credits</p>
+                <p className="text-3xl font-bold text-gray-900">{profile?.credits || 0}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Sparkles className="text-purple-600" size={24} />
+              </div>
+            </div>
+            <div className="mt-4 w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-600 to-purple-700 transition-all duration-500"
+                style={{ width: `${((profile?.credits || 0) / 10) * 100}%` }}
+              />
+            </div>
           </div>
 
+          {/* Today's Emails */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Sent Today</p>
+                <p className="text-3xl font-bold text-gray-900">{todayEmails}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Mail className="text-blue-600" size={24} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">Keep up the momentum!</p>
+          </div>
 
-        {/* new messages input */}
-        <div className="fixed bottom-6 right-6 z-50">
+          {/* Success Rate */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Success Rate</p>
+                <p className="text-3xl font-bold text-gray-900">100%</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <TrendingUp className="text-green-600" size={24} />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">All emails delivered</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Neural Network Section */}
+      <div className="max-w-7xl mx-auto px-6 pb-12 pt-4 md:pt-0">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+          <NeuralNetworkButton
+            onGmailConnect={handleConnectGmail}
+            onSendEmail={handleSendingGmail}
+            onStartListening={handleStartListening}
+            isGmailConnected={isGmailConnected}
+            isListening={speech.length > 0}
+            transcript={speech}
+          />
+
+          {/* Status Bar */}
+          <div className="mt-8 flex items-center justify-center">
+            <div className="bg-gray-50 rounded-xl px-6 py-3 border border-gray-200">
+              <p className="text-sm text-gray-700 font-medium flex items-center gap-2">
+                {!isGmailConnected && (
+                  <>
+                    <Mail size={16} className="text-gray-500" />
+                    Connect Gmail account to begin
+                  </>
+                )}
+                {isGmailConnected && !speech && (
+                  <>
+                    <CheckCircle size={16} className="text-green-600" />
+                    Ready to record - Click center button
+                  </>
+                )}
+                {speech && (
+                  <>
+                    <Zap size={16} className="text-purple-600" />
+                    Review your message and send
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        {recentEmails.length > 0 && (
+          <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Clock className="text-gray-600" size={20} />
+                Recent Activity
+              </h3>
+              <button
+                onClick={() => router.push('/profile')}
+                className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+              >
+                View all
+                <ArrowRight size={16} />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {recentEmails.map((email: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-purple-200 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Mail className="text-purple-600" size={18} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{email.receiverName}</p>
+                      <p className="text-sm text-gray-600">{email.receiverEmail}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-md border border-green-200 font-medium">
+                      Delivered
+                    </span>
+                    <p className="text-sm text-gray-500">
+                      {new Date(email.sentAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric"
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chat Support */}
+      <div className="fixed bottom-6 right-6 z-50">
         {!isChatOpen ? (
           <button
             onClick={() => setIsChatOpen(true)}
-            className="rounded-full flex items-center justify-center transition-all hover:scale-110 mr-6 mb-6"
+            className="w-16 h-16 bg-purple-600 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
           >
-            <Image src="/support.png" alt="Chat Icon" width={72} height={72} className="shadow-sm rounded-full "/>
+            <MessageCircle className="text-white" size={28} />
           </button>
         ) : (
           <div className="bg-white rounded-2xl shadow-2xl w-[390px] h-[480px] flex flex-col border-2 border-gray-200">
-            {/* Chat Header */}
             <div className="bg-[#cc39f5] text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-opacity-20 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                   <MessageCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Customer Support</h3>
-                  <p className="text-xs text-blue-100">We're here to help</p>
+                  <h3 className="font-semibold">Support Chat</h3>
+                  <p className="text-xs text-purple-100">We're here to help</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsChatOpen(false)}
-                className="hover:bg-white hover:text-black hover:bg-opacity-20 rounded-lg p-1 transition-colors"
+                className="hover:bg-white/20 rounded-lg p-1 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
-              ref={chatRef}
-              onScroll={handleScroll}
-            >
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -465,19 +604,22 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
                     className={`max-w-[70%] px-4 py-3 rounded-2xl ${
                       msg.role === "user"
                         ? "bg-[#cc39f5] text-white rounded-br-sm"
-                        : "bg-white text-gray-800 border-2 border-gray-200 rounded-bl-sm"
+                        : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
                     }`}
                   >
                     <p className="text-sm">{msg.content}</p>
                   </div>
                 </div>
               ))}
-              {sendingMessage? <div><Loader className="animate-spin ml-2 w-5 h-5 text-gray-500" /></div> : null}
+              {sendingMessage && (
+                <div className="flex justify-start">
+                  <Loader className="animate-spin w-5 h-5 text-gray-500" />
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
 
-            {/* Chat Input */}
-            <div className="p-4 border-t-2 border-gray-200 bg-white rounded-b-2xl">
+            <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -485,11 +627,11 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
                   onChange={(e) => setHumanInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleHumanMessage()}
                   placeholder="Type your message..."
-                  className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-800"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-800"
                 />
                 <button
                   onClick={handleHumanMessage}
-                  className="bg-[#cc39f5] hover:bg-blue-700 text-white p-3 rounded-xl transition-all"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-b from-[#cc39f5] to-[#b020e0] border-2 border-[#9010c0] shadow-[0_4px_0_0_rgba(144,16,192,0.8)] hover:shadow-[0_2px_0_0_rgba(144,16,192,0.8)] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] transition-all duration-100 text-white"
                 >
                   <Send className="w-5 h-5" />
                 </button>
@@ -498,8 +640,6 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
           </div>
         )}
       </div>
-
-      </div>
-    </>
+    </div>
   );
 }
