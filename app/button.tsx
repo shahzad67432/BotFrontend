@@ -1,10 +1,12 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Mic, Mail, Check, Loader, MailIcon } from 'lucide-react'
+import { Mic, Mail, Check, Loader, MailIcon, ArrowRight, TrendingUp } from 'lucide-react'
 import Image from 'next/image'
 import Lottie from 'lottie-react';
 import mailAnimation from '../public/Email.json';
+import { getUserProfileData } from './actions/profile';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface Node {
   id: number
@@ -225,21 +227,6 @@ export const NeuralNetworkButton: React.FC<NeuralNetworkButtonProps> = ({
     <div className="min-h-screen  flex items-center justify-center p-8">
       <div className="w-full max-w-6xl">
         
-        {/* Header */}
-        <div className="text-center mb-12 mt-8 flex flex-col items-center justify-center">
-          <h1 className=" relative text-5xl font-bold text-[#cc39f5] mb-4 flex flex-row items-center justify-center text-center gap-6" style={{ fontFamily: 'Mauline, sans-serif' }}>
-            NEURAL 
-            <span className=" w-[100px] items-center justify-center">
-                <Lottie 
-                  animationData={mailAnimation}
-                  loop={true}
-                  width={48}
-                  height={48}
-                />
-            </span>
-          </h1>
-          <p className='relative text-5xl text-[#cc39f5] mb-4 flex flex-row items-center justify-center text-center gap-6 font-pixel font-medium ' style={{ fontFamily: 'Mauline, sans-serif' }}> ASSISTANT</p>
-        </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -350,15 +337,14 @@ export const NeuralNetworkButton: React.FC<NeuralNetworkButtonProps> = ({
 
         {/* Send Email Button */}
         {shouldShowSendButton && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center ">
             <button
               onClick={handleSendEmail}
               disabled={state === 'sending'}
-              className="group relative px-12 py-5 bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-600 
-                hover:from-purple-600 hover:via-purple-700 hover:to-indigo-700 
+              className="group relative px-12 py-5 bg-[#cc39f5] border-2 border-[#9010c0] shadow-[0_4px_0_0_rgba(144,16,192,0.8)] hover:shadow-[0_2px_0_0_rgba(144,16,192,0.8)] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px]
                 disabled:opacity-60 disabled:cursor-not-allowed
                 text-white rounded-2xl font-semibold text-lg transition-all duration-300 
-                shadow-xl hover:shadow-2xl hover:scale-105 transform"
+                transform"
             >
               <span className="relative z-10 flex items-center gap-3">
                 {state === 'sending' ? (
@@ -395,4 +381,4 @@ export const NeuralNetworkButton: React.FC<NeuralNetworkButtonProps> = ({
   )
 }
 
-export default NeuralNetworkButton
+export default NeuralNetworkButton;
