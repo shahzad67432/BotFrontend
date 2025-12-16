@@ -1,7 +1,7 @@
 "use client";
 import { getUserMessages, gmailConnectionExpiryRequest } from "@/actions";
 import axios, { create, get } from "axios";
-import { ArrowBigRight, ArrowRight, BarChart3, CheckCircle, ChevronRight, Clock, Loader, Mail, MessageCircle, Send, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
+import { ArrowBigRight, ArrowRight, BarChart3, CheckCircle, ChevronRight, Clock, Layout, Loader, Mail, MessageCircle, Send, Sparkles, TrendingUp, X, Zap } from 'lucide-react';
 import Image from "next/image";
 import { ReadonlyURLSearchParams, useRouter, useSearchParams } from 'next/navigation';
 import { use, useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +15,8 @@ import { getUserProfileData } from "@/app/actions/profile";
 import Lottie from "lottie-react";
 import mailAnimation from '../public/Email.json';
 import PhantomStatsBar from "@/app/StatusBar";
+import { ChatDesign } from "./ChatbotInterface";
+import { ClassicDesign } from "./ClassicDesign";
 
 type ChatMessage = {
   id: number;
@@ -37,6 +39,7 @@ export default function Home() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [expandedFeature, setExpandedFeature] = useState<null | 'compose' | 'insights' | 'history'>(null);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [isNewDesign, setIsNewDesign] = useState(false);
   const queryClient = useQueryClient();
 
   const router = useRouter();
@@ -422,111 +425,65 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
     return emailDate.toDateString() === today.toDateString();
   }).length || 0;
 
+
+    useEffect(() => {
+    const saved = localStorage.getItem('design_preference');
+    if (saved) setIsNewDesign(saved === 'chat');
+    }, []);
+
+    const toggleDesign = () => {
+      const newValue = !isNewDesign;
+      setIsNewDesign(newValue);
+      localStorage.setItem('design_preference', newValue ? 'chat' : 'classic');
+    };
+
     return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       {/* Header - Placeholder for your HeaderPage component */}
       <HeaderPage/>
+    <button
+      onClick={toggleDesign}
+      className="text-white fixed bottom-6 left-6 z-50 p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-sm shadow-lg hover:scale-110 transition-transform flex items-center justify-center group"
+    >
+      {isNewDesign ? "Old Design" : "New Design"}
+    </button>
 
-      {/* --- STATS SECTION (Integrated) --- */}
-      {isLoading ? (
-        <div className="w-full max-w-7xl mx-auto h-48 flex items-center justify-center">
-           <Loader className="animate-spin text-purple-500" />
-        </div>
-      ) : (
-        <PhantomStatsBar 
-          credits={profile?.credits} 
-          history={profile?.emailHistory} 
-        />
-      )}
-
-      {/* Neural Network Section */}
-      <div className="max-w-7xl mx-auto px-6 pb-12 pt-4 md:pt-0">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
-          <NeuralNetworkButton
-            onGmailConnect={handleConnectGmail}
+    {/* Design Switch */}
+    {isNewDesign ? (
+      <ChatDesign
+            profile={profile}
+            isGmailConnected={isGmailConnected}
+            onConnectGmail={handleConnectGmail}
             onSendEmail={handleSendingGmail}
             onStartListening={handleStartListening}
-            isGmailConnected={isGmailConnected}
-            isListening={speech.length > 0}
-            transcript={speech}
+            onStopListening={stopListening}
+            speech={speech}
+            setSpeech={setSpeech}
+            recentEmails={recentEmails}
+            messages={messages}
+            setMessages={setMessages}
+            humanInput={humanInput}
+            setHumanInput={setHumanInput}
+            handleHumanMessage={handleHumanMessage}
+            sendingMessage={sendingMessage}
+            chatEndRef={chatEndRef}
+            isLoading={false}
           />
-
-          {/* Status Bar */}
-          <div className="mt-8 flex items-center justify-center">
-            <div className="bg-gray-50 rounded-xl px-6 py-3 border border-gray-200">
-              <p className="text-sm text-gray-700 font-medium flex items-center gap-2">
-                {!isGmailConnected && (
-                  <>
-                    <Mail size={16} className="text-gray-500" />
-                    Connect Gmail account to begin
-                  </>
-                )}
-                {isGmailConnected && !speech && (
-                  <>
-                    <CheckCircle size={16} className="text-green-600" />
-                    Ready to record - Click center button
-                  </>
-                )}
-                {speech && (
-                  <>
-                    <Zap size={16} className="text-purple-600" />
-                    Review your message and send
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        {recentEmails.length > 0 && (
-          <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Clock className="text-gray-600" size={20} />
-                Recent Activity
-              </h3>
-              <button
-                onClick={() => router.push('/profile')}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
-              >
-                View all
-                <ArrowRight size={16} />
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {recentEmails.map((email: any, idx: number) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-purple-200 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Mail className="text-purple-600" size={18} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{email.receiverName}</p>
-                      <p className="text-sm text-gray-600">{email.receiverEmail}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-md border border-green-200 font-medium">
-                      Delivered
-                    </span>
-                    <p className="text-sm text-gray-500">
-                      {new Date(email.sentAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric"
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+        ) : (
+          <ClassicDesign
+            profile={profile}
+            isGmailConnected={isGmailConnected}
+            onConnectGmail={handleConnectGmail}
+            onSendEmail={handleSendingGmail}
+            onStartListening={handleStartListening}
+            speech={speech}
+            recentEmails={recentEmails}
+            NeuralNetworkButton={NeuralNetworkButton}
+            PhantomStatsBar={PhantomStatsBar}
+            router={router}
+            isLoading={false}
+          />
+    )}
 
       {/* Chat Support */}
       <div className="fixed bottom-6 right-6 z-50">

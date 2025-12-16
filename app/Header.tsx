@@ -23,7 +23,7 @@ export const HeaderPage = () => {
 
     return (
         <>
-            <div className="flex justify-center items-center w-full px-4">
+            <div className="flex justify-center items-center w-full px-4 pb-4">
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex justify-between px-6 w-full max-w-4xl py-3 items-center border-t-2  border-b-2 rounded-full border-[#e086f8] mt-6 bg-white/80 backdrop-blur-md shadow-lg shadow-purple-200/50">
                     <Image 
