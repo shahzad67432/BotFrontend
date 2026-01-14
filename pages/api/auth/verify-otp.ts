@@ -1,49 +1,48 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { otpStorage } from "./signup";
-import prisma from "@/lib/prisma";
-import { create_token } from "@/lib/jwt";
+import { NextApiRequest, NextApiResponse } from 'next';
+import { db } from '@/lib/neo4j';
+import { create_token } from '@/lib/jwt';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== "POST") {
-        res.setHeader("Allow", ["POST"]);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
+  if (req.method !== 'POST') {
+    return res.status(405).end();
+  }
+
+  const { email, otp, name, password, SignType } = req.body;
+
+  // Verify OTP in Neo4j
+  const user = await db.verifyOTP({
+    email,
+    otp
+  });
+
+  if (!user) {
+    return res.status(400).json({
+      message: 'Invalid or expired OTP'
+    });
+  }
+
+  if (SignType === 'signup') {
+    // Update existing user with password (user was created during storeOTP)
+    if (!name || !password) {
+      return res.status(400).json({ message: 'Name and password required' });
     }
 
-    const { email, otp, SignType } = req.body;
+    const newUser = await db.createOrUpdateUserWithPassword(email, name, password);
+    const token = create_token({ email: newUser.email, userId: newUser.id });
+    
+    return res.status(200).json({
+      message: 'User created successfully',
+      token
+    });
+  }
 
-    const otpRecord = otpStorage[email];
-    if (!otpRecord || otpRecord.otp !== otp || otpRecord.expiresAt <= new Date()) {
-        return res.status(400).json({ message: "Invalid or expired OTP" });
-    }
+  if (SignType === 'login') {
+    const token = create_token({ email: user.email, userId: user.id });
+    return res.status(200).json({
+      message: 'Login successful',
+      token
+    });
+  }
 
-    // Clear OTP after successful verification
-    delete otpStorage[email];
-
-    try {
-        if (SignType === "signup") {
-            const user = await prisma.user.create({
-                data: { email },
-            });
-
-            const token = create_token({ email, userId: user.id });
-            return res.status(200).json({ message: "OTP verified successfully and User Created", token });
-
-        } else if (SignType === "login") {
-            const user = await prisma.user.findUnique({
-                where: { email },
-            });
-
-            if (!user) {
-                return res.status(404).json({ message: "User not found" });
-            }
-
-            const token = create_token({ email, userId: user.id });
-            return res.status(200).json({ message: "OTP verified successfully", token });
-        } else {
-            return res.status(400).json({ message: "Invalid SignType" });
-        }
-    } catch (err) {
-        console.error("Error handling OTP verification:", err);
-        return res.status(500).json({ message: "Internal server error" });
-    }
+  return res.status(400).json({ message: 'Invalid SignType' });
 }

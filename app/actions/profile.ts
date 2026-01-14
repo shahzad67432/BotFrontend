@@ -1,8 +1,9 @@
+
 "use server";
-import { prisma } from "@/lib/prisma"; // adjust your prisma client path
+import { db } from "@/lib/neo4j";
 import jwt from "jsonwebtoken";
 
-const SECRET_KEY = "secretkey123"; // use your actual secret
+const SECRET_KEY = process.env.JWT_SECRET || "secretkey123";
 
 export async function getUserProfileData(token: string) {
   try {
@@ -11,36 +12,13 @@ export async function getUserProfileData(token: string) {
     const userEmail = decoded.email;
 
     // Fetch user with email history
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-      select: {
-        name: true,
-        email: true,
-        credits: true,
-        emailHistory: {
-          orderBy: { sentAt: "desc" },
-          take: 50, // limit to last 50 emails
-        },
-      },
-    });
+    const userData = await db.getUserProfileData(userEmail);
 
-    if (!user) {
+    if (!userData) {
       throw new Error("User not found");
     }
 
-    return {
-      name: user.name || "User",
-      email: user.email,
-      credits: user.credits,
-      emailHistory: user.emailHistory.map((email) => ({
-        id: email.id,
-        receiverEmail: email.receiverEmail,
-        receiverName: email.receiverName,
-        emailType: email.emailType,
-        sentAt: email.sentAt,
-        status: email.status,
-      })),
-    };
+    return userData;
   } catch (error) {
     console.error("Error fetching profile data:", error);
     throw error;

@@ -1,63 +1,107 @@
+
 "use client"
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Mail, Lock, CheckCircle, ArrowRight, Sparkles } from "lucide-react";
+import { Mail, Lock, CheckCircle, ArrowRight, User, Key } from "lucide-react";
 import Image from "next/image";
+import { sign } from "crypto";
 
-const AuthPage = ( { SignType }: { SignType: string } ) => {
+const AuthPage = ({ SignType }: { SignType: string }) => {
+  const [step, setStep] = useState<number>(1);
+  const router = useRouter();
+  const [email, setEmail] = useState<string>("");
+  const [name, setName] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [otp, setOtp] = useState<string>("");
+  const [generatedOtp, setGeneratedOtp] = useState<string>("");
+  const [loginMethod, setLoginMethod] = useState<"otp" | "password">("otp");
 
-    const [step, setStep] = useState<number>(1);
-    const router = useRouter();
-    const [email, setEmail] = useState<string>("");
-    const [otp, setOtp] = useState<string>("");
-
-    const handleSignup = async (event: React.FormEvent) => {
-        event.preventDefault();
-        const response:any = await axios.post('/api/auth/signup', { email, SignType });
-        if(response.data.message === "User not found" && SignType === "login"){
-            return alert("User not found. Please sign up first.");
-        }
-        if(response.data.message === "OTP Email sent successfully"){
-            setStep(step + 1);
-        }
+  const handleSignup = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (SignType === "signup" && (!name || !password)) {
+      alert("Please provide name and password");
+      return;
     }
 
-    const handleVerifyOTP = async (event: React.FormEvent) => {
-        event.preventDefault();
-        const response:any = await axios.post('/api/auth/verify-otp', { email, otp, SignType });
-        if (response){
-            localStorage.setItem('auth_token', response.data.token);
-            setStep(step + 1);
-        }
+    const response: any = await axios.post('/api/auth/signup', { 
+      email, 
+      name, 
+      password, 
+      SignType 
+    });
+
+    if (response.data.message === "User not found" && SignType === "login") {
+      return alert("User not found. Please sign up first.");
     }
 
+    if (response.data.message === "User already exists") {
+      return alert("User already exists. Please login.");
+    }
 
-    useEffect(() => {
+    if (response.data.otp) {
+      setGeneratedOtp(response.data.otp);
+      setStep(step + 1);
+    }
+  };
+
+  const handlePasswordLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    try {
+      const response: any = await axios.post('/api/auth/login-password', { 
+        email, 
+        password 
+      });
+
+      if (response.data.token) {
+        localStorage.setItem('auth_token', response.data.token);
+        setStep(3);
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.message || "Login failed");
+    }
+  };
+
+  const handleVerifyOTP = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    const response: any = await axios.post('/api/auth/verify-otp', { 
+      email, 
+      otp, 
+      name, 
+      password, 
+      SignType 
+    });
+
+    if (response.data.token) {
+      localStorage.setItem('auth_token', response.data.token);
+      setStep(step + 1);
+    }
+  };
+
+  useEffect(() => {
     if (step === 3 && SignType === "login") {
       setStep(1);
       router.push('/');
     }
   }, [step, SignType, router]);
 
-
-    return (
+  return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      
-
-      {/* Main Card */}
       <div className="relative w-full max-w-md">
-        {/* Logo/Brand Section */}
+        {/* Logo Section */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 cursor-pointer" onClick={()=>{window.location.href = '/';}}>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 cursor-pointer" onClick={() => { window.location.href = '/'; }}>
             <Image src="/logo.png" alt="Logo" width={64} height={64} />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             {SignType === "signup" ? "Create Account" : "Welcome Back"}
           </h1>
           <p className="text-gray-600">
-            {SignType === "signup" 
-              ? "Start your journey with automated email assistance" 
+            {SignType === "signup"
+              ? "Start your journey with automated email assistance"
               : "Sign in to continue to your dashboard"}
           </p>
         </div>
@@ -68,7 +112,7 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all ${step >= 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-200'}`}>
               {step > 1 ? '✓' : '1'}
             </div>
-            <span className="ml-2 text-xs font-medium hidden sm:inline">Email</span>
+            <span className="ml-2 text-xs font-medium hidden sm:inline">Details</span>
           </div>
           <div className={`w-12 h-0.5 transition-all ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
           <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
@@ -88,9 +132,28 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
 
         {/* Auth Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-8 backdrop-blur-sm">
-          {/* Step 1: Email Input */}
+          {/* Step 1: User Details */}
           {step === 1 && (
             <div className="space-y-6">
+              {/* Login Method Toggle (Only for Login) */}
+              {SignType === "login" && (
+                <div className="flex gap-2 p-1 bg-gray-100 rounded-lg mb-4">
+                  <button
+                    onClick={() => setLoginMethod("otp")}
+                    className={`flex-1 py-2 rounded-md font-medium transition-all ${loginMethod === "otp" ? 'bg-white shadow text-blue-600' : 'text-gray-600'}`}
+                  >
+                    OTP Login
+                  </button>
+                  <button
+                    onClick={() => setLoginMethod("password")}
+                    className={`flex-1 py-2 rounded-md font-medium transition-all ${loginMethod === "password" ? 'bg-white shadow text-blue-600' : 'text-gray-600'}`}
+                  >
+                    Password Login
+                  </button>
+                </div>
+              )}
+
+              {/* Email Input */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Email Address
@@ -102,17 +165,57 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSignup(e as any)}
-                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-gray-800 placeholder-gray-400"
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-gray-800"
                   />
                 </div>
               </div>
 
+              {/* Name Input (Signup Only) */}
+              {SignType === "signup" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Muhammad Shahzad Ali"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-gray-800"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Password Input */}
+              {SignType === "signup" || (SignType === "login" && loginMethod === "password") ? 
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-gray-800"
+                  />
+                </div>
+              </div>
+              
+              : null }
+
+              {/* Submit Button */}
               <button
-                onClick={handleSignup}
+                onClick={SignType === "login" && loginMethod === "password" ? handlePasswordLogin : handleSignup}
                 className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-3.5 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
               >
-                Continue
+                {SignType === "login" && loginMethod === "password" ? "Login" : "Continue"}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
@@ -126,9 +229,14 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
                   <Lock className="w-7 h-7 text-blue-600" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Verify Your Email</h3>
-                <p className="text-sm text-gray-600">
-                  We've sent a code to <span className="font-semibold text-gray-800">{email}</span>
+                <p className="text-sm text-gray-600 mb-4">
+                  Enter the OTP for <span className="font-semibold text-gray-800">{email}</span>
                 </p>
+                {/* 🔥 Display OTP on screen */}
+                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-yellow-800 font-semibold">Development Mode - Your OTP:</p>
+                  <p className="text-3xl font-bold text-yellow-900 tracking-wider">{generatedOtp}</p>
+                </div>
               </div>
 
               <div>
@@ -157,7 +265,7 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
                 onClick={() => setStep(1)}
                 className="w-full text-gray-600 hover:text-gray-800 py-2 text-sm font-medium transition-colors"
               >
-                ← Back to email
+                ← Back to details
               </button>
             </div>
           )}
@@ -173,8 +281,8 @@ const AuthPage = ( { SignType }: { SignType: string } ) => {
                   {SignType === "signup" ? "Account Created!" : "Login Successful!"}
                 </h3>
                 <p className="text-gray-600">
-                  {SignType === "signup" 
-                    ? "Your account has been created successfully." 
+                  {SignType === "signup"
+                    ? "Your account has been created successfully."
                     : "Redirecting to your dashboard..."}
                 </p>
               </div>

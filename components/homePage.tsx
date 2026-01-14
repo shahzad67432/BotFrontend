@@ -52,7 +52,11 @@ export default function Home() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const jwt = localStorage.getItem("auth_token");
+  let jwt = null;
+
+  if (typeof window !== "undefined") {
+    jwt = window.localStorage.getItem("auth_token");
+  }
   
   useEffect(() => {
     if (!jwt) {
@@ -71,6 +75,8 @@ export default function Home() {
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
   })
+
+  console.log("User Profile:", profile);
 
   useEffect(() => {
     
@@ -324,33 +330,46 @@ export default function Home() {
     setHumanInput("");
 
     const res = await axios.get("http://127.0.0.1:5000/bot-chat", {
-      params: { human_input: inputMessage, auth_token: token },
+      params: { human_input: inputMessage, auth_token: token, email: profile.email, name: profile.name  },
     });
 
     const botMsg = {
-      id: Date.now(),
+      id: res.data.botMessage?.id || Date.now(),
       role: "bot",
-      createdAt: new Date(),
-      userId: 0,
-      content: res.data,
+      createdAt: res.data.botMessage?.createdAt 
+        ? new Date(res.data.botMessage.createdAt) 
+        : new Date(),
+      userId: res.data.botMessage?.userId || 0,
+      content: res.data.content, // Bot response text
     };
 
     setSendingMessage(false);
     setMessages(prev => [...prev, botMsg]);
+    queryClient.invalidateQueries({ queryKey: ['messages'] });
   } catch (error) {
     console.error(error);
-  }
-};
-
-
-const { data: initialData, isLoading, error, isFetching } = useQuery({
-    queryKey: ['messages', 1], // Always fetch page 1
+    setSendingMessage(false);
     
-    queryFn: async () => {
-      const token = localStorage.getItem("auth_token");
-      if (!token) throw new Error("No token");
-      return await getUserMessages(token, 1);
-    },
+    const errorMsg = {
+      id: Date.now(),
+      role: "bot",
+      createdAt: new Date(),
+      userId: 0,
+      content: "Sorry, I encountered an error. Please try again.",
+    };
+    setMessages(prev => [...prev, errorMsg]);
+  }
+  };
+
+  const token =
+  typeof window !== "undefined"
+    ? localStorage.getItem("auth_token")
+    : null;
+
+  const { data: initialData, isLoading, error, isFetching } = useQuery({
+    queryKey: ['messages', 1], // Always fetch page 1
+    queryFn: () => getUserMessages(token, 1),
+    enabled: !!token, 
     staleTime: 15 * 60 * 1000, // Cache for 15 minutes
     gcTime: 30 * 60 * 1000, // Keep in memory for 30 minutes
     retry: 1,
@@ -563,187 +582,3 @@ const { data: initialData, isLoading, error, isFetching } = useQuery({
     </div>
   );
 }
-
-//   const processEmailStats = (history: any[]) => {
-//     const now = new Date();
-//     const todayStr = now.toDateString();
-
-//     console.log("Email history:", history);
-    
-//     // 1. Calculate Today's Count
-//     const sentToday = history.filter(email => new Date(email.sentAt).toDateString() === todayStr).length;
-
-//     // 2. Calculate Success Rate
-//     // Assuming status is 'sent' or 'delivered' for success. Adjust 'failed' check as needed.
-//     const total = history.length;
-//     const successful = history.filter(email => email.status !== 'failed').length;
-//     const successRate = total === 0 ? 100 : Math.round((successful / total) * 100);
-
-//     // 3. Generate Last 5 Days Activity for Bar Chart
-//     const days = [];
-//     const activityData = [];
-//     const dayLabels = [];
-
-//     for (let i = 4; i >= 0; i--) {
-//       const d = new Date();
-//       d.setDate(now.getDate() - i);
-//       const dStr = d.toDateString();
-
-//       // Get Day Name (e.g., "M", "T")
-//       dayLabels.push(d.toLocaleDateString('en-US', { weekday: 'narrow' }));
-
-//       // Count emails for this specific date
-//       const count = history.filter(email => new Date(email.sentAt).toDateString() === dStr).length;
-//       days.push(count);
-//     }
-
-//     // Normalize data for bar height (0 to 100%)
-//     // We find the max value in the week to set the scale. If max is 0, avoid division by zero.
-//     const maxVal = Math.max(...days, 5); // Minimum scale of 5 to avoid flat bars
-//     days.forEach(count => activityData.push((count / maxVal) * 100));
-
-//     return { sentToday, successRate, activityData, dayLabels };
-//   };
-
-
-// const PhantomStatsBar = ({ credits = 0, history = [] }) => {
-//   const { sentToday, successRate, activityData, dayLabels } = processEmailStats(history);
-
-//   return (
-//     <div className="w-full max-w-7xl mx-auto px-6 py-6 hidden md:block">
-//       <div className="bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl p-8 flex items-center justify-between relative overflow-hidden">
-        
-//         {/* Background Gradients */}
-//         <div className="absolute -top-20 -left-20 w-64 h-64 bg-purple-200/30 rounded-full blur-3xl pointer-events-none" />
-//         <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-blue-200/30 rounded-full blur-3xl pointer-events-none" />
-
-//         {/* 1. Activity Chart */}
-//         <div className="flex flex-col gap-4 w-1/3 border-r border-gray-100 pr-8">
-//           <div className="flex items-center justify-between mb-2">
-//             <h3 className="text-gray-500 text-sm font-medium">Activity (5 Days)</h3>
-//             <span className="text-xs font-bold text-green-500 bg-green-50 px-2 py-1 rounded-full">Live</span>
-//           </div>
-//           <div className="h-24 flex items-end justify-between gap-3">
-//             {activityData.map((height, i) => (
-//               <div key={i} className="flex flex-col items-center gap-2 flex-1 group cursor-pointer">
-//                 <div className="relative w-full rounded-t-lg bg-gray-100 h-full overflow-hidden flex items-end">
-//                    <div 
-//                     className="w-full rounded-t-lg transition-all duration-1000 ease-out group-hover:opacity-80"
-//                     style={{ 
-//                       height: `${height}%`,
-//                       background: 'linear-gradient(180deg, #cc39f5 0%, #6366f1 100%)' 
-//                     }} 
-//                    />
-//                 </div>
-//                 <span className="text-[10px] text-gray-400 font-medium">
-//                   {dayLabels[i]}
-//                 </span>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Header */}
-//         <div className="text-center mb-12 mt-8 flex flex-col items-center justify-center">
-//           <h1 className=" relative text-5xl font-bold text-[#cc39f5] mb-4 flex flex-row items-center justify-center text-center gap-6" style={{ fontFamily: 'Mauline, sans-serif' }}>
-//             NEURAL 
-//             <span className=" w-[100px] items-center justify-center">
-//                 <Lottie 
-//                   animationData={mailAnimation}
-//                   loop={true}
-//                   width={48}
-//                   height={48}
-//                 />
-//             </span>
-//           </h1>
-//           <p className='relative text-5xl text-[#cc39f5] mb-4 flex flex-row items-center justify-center text-center gap-6 font-pixel font-medium ' style={{ fontFamily: 'Mauline, sans-serif' }}> ASSISTANT</p>
-//         </div>
-
-//         {/* 2. Credits Gauge */}
-//         <div className="flex flex-col items-center justify-center w-1/3 px-8 relative">
-//           {/* Top Left - Max Credits */}
-//           {/* <div className="absolute top-0 left-12 text-center">
-//             <p className="text-2xl font-bold text-gray-800">100</p>
-//             <p className="text-[10px] text-gray-400 font-medium">Max Credits</p>
-//           </div> */}
-          
-//           {/* Top Right - Used Credits */}
-//           <div className="absolute top-0 right-12 text-center">
-//             <p className="text-2xl font-bold text-gray-800">{10 - credits}</p>
-//             <p className="text-[10px] text-gray-400 font-medium">Used Credits</p>
-//           </div>
-          
-//           {/* Bottom - Success Rate */}
-//           {/* <div className="absolute bottom-0 text-center">
-//             <p className="text-2xl font-bold text-green-500">{successRate}%</p>
-//             <p className="text-[10px] text-gray-400 font-medium">Success Rate</p>
-//           </div> */}
-
-//           {/* Main Gauge */}
-//           <div className="relative w-56 h-32 flex items-center justify-center">
-//             <svg viewBox="0 0 200 110" className="w-full h-full">
-//               {/* Generate line-based semicircle */}
-//               {Array.from({ length: 50 }).map((_, i) => {
-//                 const angle = (i / 49) * 180; // 0 to 180 degrees (left to right)
-//                 const radians = (angle * Math.PI) / 180;
-//                 const radius = 85;
-//                 const centerX = 100;
-//                 const centerY = 100;
-//                 const x1 = centerX + Math.cos(radians) * (radius - 12);
-//                 const y1 = centerY - Math.sin(radians) * (radius - 12);
-//                 const x2 = centerX + Math.cos(radians) * radius;
-//                 const y2 = centerY - Math.sin(radians) * radius;
-                
-//                 const progress = (credits / 10) * 50;
-//                 const isActive = i < progress;
-                
-//                 return (
-//                   <line
-//                     key={i}
-//                     x1={x1}
-//                     y1={y1}
-//                     x2={x2}
-//                     y2={y2}
-//                     stroke={isActive ? (i < progress * 0.6 ? '#cc39f5' : '#6366f1') : '#e5e7eb'}
-//                     strokeWidth="2.5"
-//                     strokeLinecap="round"
-//                     className="transition-all duration-1000 ease-out"
-//                     style={{ transitionDelay: `${i * 10}ms` }}
-//                   />
-//                 );
-//               })}
-//             </svg>
-            
-//             {/* Center text */}
-//             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/4 text-center">
-//               <p className="text-5xl font-bold text-gray-800">{credits}</p>
-//               <p className="text-xs text-gray-400 font-medium mt-1">Available Credits</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* 3. Metrics */}
-//         {/* <div className="flex flex-col gap-6 w-1/3 border-l border-gray-100 pl-8 justify-center">
-//           <div className="flex items-center justify-between group cursor-pointer">
-//             <div>
-//               <p className="text-3xl font-bold text-gray-800 group-hover:text-[#cc39f5] transition-colors">{sentToday}</p>
-//               <p className="text-sm text-gray-500">Emails Sent Today</p>
-//             </div>
-//             <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-purple-50 transition-colors">
-//               <ArrowRight size={20} className="text-gray-400 group-hover:text-[#cc39f5]" />
-//             </div>
-//           </div>
-//           <div className="flex items-center justify-between group cursor-pointer">
-//             <div>
-//               <p className="text-3xl font-bold text-gray-800 group-hover:text-green-500 transition-colors">{successRate}%</p>
-//               <p className="text-sm text-gray-500">Success Rate</p>
-//             </div>
-//             <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-green-50 transition-colors">
-//               <TrendingUp size={20} className="text-gray-400 group-hover:text-green-500" />
-//             </div>
-//           </div>
-//         </div> */}
-//       </div>
-//     </div>
-//   )
-// }

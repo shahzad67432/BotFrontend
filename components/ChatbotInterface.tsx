@@ -41,9 +41,9 @@ export const ChatDesign = ({
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)] max-w-[1800px] mx-auto">
+    <div className="flex h-[calc(100vh-120px)] max-w-7xl mx-auto px-6 py-8">
       {/* Sidebar */}
-      <div className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 overflow-hidden`}>
+      <div className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 overflow-hidden rounded-l-xl`}>
         <div className="p-6 space-y-6">
           {/* Gmail Connection */}
           <div className="space-y-3">
@@ -126,7 +126,7 @@ export const ChatDesign = ({
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-gray-50">
         {/* Top Bar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className={`bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-tr-xl ${!showSidebar && "rounded-tl-xl"}`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
@@ -223,7 +223,7 @@ export const ChatDesign = ({
         </div>
 
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 px-6 py-4">
+        <div className={`bg-white border-t border-gray-200 px-6 py-4 rounded-br-xl ${!showSidebar && "rounded-tl-xl"}`}>
           <div className="max-w-4xl mx-auto">
             <div className="flex items-end gap-3">
               {/* Voice Button */}
@@ -247,7 +247,7 @@ export const ChatDesign = ({
                   onChange={(e) => setHumanInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleHumanMessage()}
                   placeholder={isGmailConnected ? "Type a message or use voice..." : "Connect Gmail first..."}
-                  disabled={!isGmailConnected}
+                  // disabled={!isGmailConnected}
                   className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800"
                 />
               </div>
@@ -255,7 +255,7 @@ export const ChatDesign = ({
               {/* Send Button */}
               <button
                 onClick={handleHumanMessage}
-                disabled={!humanInput.trim() || !isGmailConnected}
+                // disabled={!humanInput.trim() || !isGmailConnected}
                 className="p-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 <Send size={24} />
