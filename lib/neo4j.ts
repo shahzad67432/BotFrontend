@@ -7,14 +7,14 @@ function getDriver(): Driver {
     const uri = 'neo4j://127.0.0.1:7687'
     const user = 'neo4j';
     const password = '11223344'
-    
+
     // For Neo4j Aura (neo4j+s://) connections
     const config: any = {
       maxConnectionLifetime: 3 * 60 * 60 * 1000, // 3 hours
       maxConnectionPoolSize: 50,
       connectionAcquisitionTimeout: 2 * 60 * 1000, // 2 minutes
     };
-    
+
     driver = neo4j.driver(uri, neo4j.auth.basic(user, password), config);
   }
   return driver;
@@ -31,42 +31,42 @@ class Neo4jDatabase {
     const session = this.driver.session();
     try {
       console.log('Setting up Neo4j constraints and indexes...');
-      
+
       await session.run(`
         CREATE CONSTRAINT user_id IF NOT EXISTS
         FOR (u:User) REQUIRE u.id IS UNIQUE
       `);
-      
+
       await session.run(`
         CREATE CONSTRAINT user_email IF NOT EXISTS
         FOR (u:User) REQUIRE u.email IS UNIQUE
       `);
-      
+
       await session.run(`
         CREATE CONSTRAINT message_id IF NOT EXISTS
         FOR (m:Message) REQUIRE m.id IS UNIQUE
       `);
-      
+
       await session.run(`
         CREATE CONSTRAINT email_id IF NOT EXISTS
         FOR (e:EmailHistory) REQUIRE e.id IS UNIQUE
       `);
-      
+
       await session.run(`
         CREATE CONSTRAINT oauth_id IF NOT EXISTS
         FOR (o:UserOAuth) REQUIRE o.id IS UNIQUE
       `);
-      
+
       await session.run(`
         CREATE INDEX user_created IF NOT EXISTS
         FOR (u:User) ON (u.createdAt)
       `);
-      
+
       await session.run(`
         CREATE INDEX message_created IF NOT EXISTS
         FOR (m:Message) ON (m.createdAt)
       `);
-      
+
       console.log('✅ Schema setup complete!');
     } finally {
       await session.close();
@@ -75,11 +75,11 @@ class Neo4jDatabase {
 
   // USER DB FUNCTIONS WE CAN CALL FROM OUR APP
 
-async createOrUpdateUserWithPassword(email: string, name: string, password: string, credits: number = 10) {
-  const session = this.driver.session();
-  try {
-    const result = await session.run(
-      `MERGE (u:User {email: $email})
+  async createOrUpdateUserWithPassword(email: string, name: string, password: string, credits: number = 10) {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `MERGE (u:User {email: $email})
       ON CREATE SET
         u.id = randomUUID(),
         u.name = $name,
@@ -94,48 +94,48 @@ async createOrUpdateUserWithPassword(email: string, name: string, password: stri
         u.createdAt = COALESCE(u.createdAt, datetime()),
         u.updatedAt = datetime()
       RETURN u`,
-      { email, name, password, credits }
-    );
-    const userNode = result.records[0].get('u');
-    const creditsValue = userNode.properties.credits;
-    const createdAt = userNode.properties.createdAt;
-    const updatedAt = userNode.properties.updatedAt;
-    
-    return {
-      id: userNode.properties.id,
-      email: userNode.properties.email,
-      name: userNode.properties.name,
-      credits: typeof creditsValue === 'object' ? neo4j.int(creditsValue).toInt() : (creditsValue || 10),
-      createdAt: createdAt ? new Date(createdAt.toString()) : new Date(),
-      updatedAt: updatedAt ? new Date(updatedAt.toString()) : new Date(),
-    };
-  } finally {
-    await session.close();
-  }
-}
+        { email, name, password, credits }
+      );
+      const userNode = result.records[0].get('u');
+      const creditsValue = userNode.properties.credits;
+      const createdAt = userNode.properties.createdAt;
+      const updatedAt = userNode.properties.updatedAt;
 
-async verifyPassword(email: string, password: string) {
-  const session = this.driver.session();
-  try {
-    const result = await session.run(
-      'MATCH (u:User {email: $email, password: $password}) RETURN u',
-      { email, password }
-    );
-    if (result.records.length === 0) return null;
-    
-    const userNode = result.records[0].get('u');
-    return {
-      id: userNode.properties.id,
-      email: userNode.properties.email,
-      name: userNode.properties.name,
-      credits: neo4j.int(userNode.properties.credits).toInt(),
-      createdAt: new Date(userNode.properties.createdAt.toString()),
-      updatedAt: new Date(userNode.properties.updatedAt.toString()),
-    };
-  } finally {
-    await session.close();
+      return {
+        id: userNode.properties.id,
+        email: userNode.properties.email,
+        name: userNode.properties.name,
+        credits: typeof creditsValue === 'object' ? neo4j.int(creditsValue).toInt() : (creditsValue || 10),
+        createdAt: createdAt ? new Date(createdAt.toString()) : new Date(),
+        updatedAt: updatedAt ? new Date(updatedAt.toString()) : new Date(),
+      };
+    } finally {
+      await session.close();
+    }
   }
-}
+
+  async verifyPassword(email: string, password: string) {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        'MATCH (u:User {email: $email, password: $password}) RETURN u',
+        { email, password }
+      );
+      if (result.records.length === 0) return null;
+
+      const userNode = result.records[0].get('u');
+      return {
+        id: userNode.properties.id,
+        email: userNode.properties.email,
+        name: userNode.properties.name,
+        credits: neo4j.int(userNode.properties.credits).toInt(),
+        createdAt: new Date(userNode.properties.createdAt.toString()),
+        updatedAt: new Date(userNode.properties.updatedAt.toString()),
+      };
+    } finally {
+      await session.close();
+    }
+  }
 
   async createUser(email: string, name: string = 'user', credits: number = 10) {
     const session = this.driver.session();
@@ -174,7 +174,7 @@ async verifyPassword(email: string, password: string) {
         { email }
       );
       if (result.records.length === 0) return null;
-      
+
       const userNode = result.records[0].get('u');
       return {
         id: userNode.properties.id,
@@ -197,7 +197,7 @@ async verifyPassword(email: string, password: string) {
         { userId }
       );
       if (result.records.length === 0) return null;
-      
+
       const userNode = result.records[0].get('u');
       return {
         id: userNode.properties.id,
@@ -261,12 +261,12 @@ async verifyPassword(email: string, password: string) {
       const result = await session.run(
         `MATCH (u:User {id: $userId})
         RETURN u`,
-        { 
+        {
           userId: userId
         }
       );
       if (result.records.length === 0) return null;
-      
+
       const oauthNode = result.records[0].get('u');
       return {
         id: oauthNode.properties.id,
@@ -324,13 +324,12 @@ async verifyPassword(email: string, password: string) {
         ORDER BY m.createdAt DESC
         SKIP $skip
         LIMIT $limit`,
-        { 
-        userId: userId,
-        skip: neo4j.int(skip), 
-        limit: neo4j.int(perPage) 
+        {
+          userId: userId,
+          skip: neo4j.int(skip),
+          limit: neo4j.int(perPage)
         }
       );
-      
       return result.records.map(record => {
         const msgNode = record.get('m');
         return {
@@ -339,6 +338,7 @@ async verifyPassword(email: string, password: string) {
           role: msgNode.properties.role,
           content: msgNode.properties.content,
           createdAt: new Date(msgNode.properties.createdAt.toString()),
+          analysis: msgNode.properties.analysis ? JSON.parse(msgNode.properties.analysis) : null,
         };
       }).reverse();
     } finally {
@@ -397,7 +397,7 @@ async verifyPassword(email: string, password: string) {
         LIMIT $limit`,
         { userId: userId, limit: neo4j.int(limit) }
       );
-      
+
       return result.records.map(record => {
         const emailNode = record.get('e');
         return {
@@ -415,19 +415,19 @@ async verifyPassword(email: string, password: string) {
     }
   }
 
-async storeOTP({
-  email,
-  otp,
-  expiresAt
-}: {
-  email: string;
-  otp: string;
-  expiresAt: Date;
-}) {
-  const session = this.driver.session();
-  try {
-    await session.run(
-      `
+  async storeOTP({
+    email,
+    otp,
+    expiresAt
+  }: {
+    email: string;
+    otp: string;
+    expiresAt: Date;
+  }) {
+    const session = this.driver.session();
+    try {
+      await session.run(
+        `
       MERGE (u:User {email: $email})
       ON CREATE SET
         u.id = randomUUID(),
@@ -436,29 +436,29 @@ async storeOTP({
       SET u.otp = $otp,
           u.otpExpiresAt = datetime($expiresAt)
       `,
-      {
-        email,
-        otp,
-        expiresAt: expiresAt.toISOString()
-      }
-    );
-  } finally {
-    await session.close();
+        {
+          email,
+          otp,
+          expiresAt: expiresAt.toISOString()
+        }
+      );
+    } finally {
+      await session.close();
+    }
   }
-}
 
-async verifyOTP({
-  email,
-  otp
-}: {
-  email: string;
-  otp: string;
-}) {
-  const session = this.driver.session();
+  async verifyOTP({
+    email,
+    otp
+  }: {
+    email: string;
+    otp: string;
+  }) {
+    const session = this.driver.session();
 
-  try {
-    const result = await session.run(
-      `
+    try {
+      const result = await session.run(
+        `
       MATCH (u:User {email: $email})
       WHERE u.otp = $otp
         AND u.otpExpiresAt > datetime()
@@ -466,18 +466,18 @@ async verifyOTP({
       REMOVE u.otp, u.otpExpiresAt
       RETURN u
       `,
-      { email, otp }
-    );
+        { email, otp }
+      );
 
-    if (result.records.length === 0) {
-      return null;
+      if (result.records.length === 0) {
+        return null;
+      }
+
+      return result.records[0].get('u').properties;
+    } finally {
+      await session.close();
     }
-
-    return result.records[0].get('u').properties;
-  } finally {
-    await session.close();
   }
-}
 
 
 
@@ -493,13 +493,13 @@ async verifyOTP({
         LIMIT 1`,
         { email }
       );
-      
+
       if (result.records.length === 0) return null;
-      
+
       const record = result.records[0];
       const userNode = record.get('u');
       const emailHistoryNodes = record.get('emailHistory');
-      
+
       return {
         name: userNode.properties.name || 'User',
         userId: userNode.properties.id,

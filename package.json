@@ -13,16 +13,21 @@
     "setup:neo4j": "dotenv -e .env.local -- tsx lib/setup-neo4j.ts"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/query-sync-storage-persister": "^5.90.12",
     "@tanstack/react-query": "^5.90.10",
     "@tanstack/react-query-persist-client": "^5.90.12",
     "@types/axios": "^0.9.36",
     "@types/nodemailer-smtp-transport": "^2.7.8",
     "axios": "^1.13.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "cryptography": "^1.2.3",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.2",
+    "lottie": "^0.0.1",
     "lottie-react": "^2.4.1",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.553.0",
     "neo4j-driver": "^6.0.1",
     "next": "16.0.1",
@@ -31,6 +36,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {

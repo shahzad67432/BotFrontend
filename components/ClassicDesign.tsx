@@ -23,7 +23,7 @@ export const ClassicDesign = ({
           <Loader className="animate-spin text-purple-500" />
         </div>
       ) : (
-        <PhantomStatsBar 
+        <PhantomStatsBar
           credits={profile?.credits} 
           history={profile?.emailHistory} 
         />

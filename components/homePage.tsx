@@ -17,6 +17,8 @@ import mailAnimation from '../public/Email.json';
 import PhantomStatsBar from "@/app/StatusBar";
 import { ChatDesign } from "./ChatbotInterface";
 import { ClassicDesign } from "./ClassicDesign";
+import chatAnimation from "..//public/chatbot.json"
+
 
 type ChatMessage = {
   id: number;
@@ -24,6 +26,7 @@ type ChatMessage = {
   content: string;
   createdAt: Date;
   userId: number;
+  analysis?: any;
 }
 
 export default function Home() {
@@ -41,6 +44,7 @@ export default function Home() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [isNewDesign, setIsNewDesign] = useState(false);
   const queryClient = useQueryClient();
+  const [res, setRes] = useState<any>(null);
 
   const router = useRouter();
 
@@ -57,7 +61,7 @@ export default function Home() {
   if (typeof window !== "undefined") {
     jwt = window.localStorage.getItem("auth_token");
   }
-  
+
   useEffect(() => {
     if (!jwt) {
       window.location.href = `http://localhost:3000/login`;
@@ -65,7 +69,7 @@ export default function Home() {
 
   }, [jwt]);
 
-  const { data: profile, isError} = useQuery<any>({
+  const { data: profile, isError } = useQuery<any>({
     queryKey: ['userProfile'],
     queryFn: async () => {
       if (!jwt) throw new Error('No token');
@@ -79,7 +83,7 @@ export default function Home() {
   console.log("User Profile:", profile);
 
   useEffect(() => {
-    
+
     if (checkedRef.current) return; // reduce duplicate calls
     checkedRef.current = true;
 
@@ -124,52 +128,52 @@ export default function Home() {
       // Connection logic stays here but button calls this function
       // Check for browser support
       const SpeechRecognition =
-      window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+        window.SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      console.error("Browser does not support SpeechRecognition API");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    let finalTranscript = "";
-    let timeoutId: NodeJS.Timeout | null = null;
-
-    recognition.onresult = (e: any) => {
-      let interimTranscript = "";
-
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const transcript = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          finalTranscript += transcript + " ";
-        } else {
-          interimTranscript += transcript;
-        }
+      if (!SpeechRecognition) {
+        console.error("Browser does not support SpeechRecognition API");
+        return;
       }
 
-      const combined = finalTranscript + interimTranscript;
-      setSpeech(combined.trim());
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
 
-      // Reset 5s inactivity timer each time speech is detected
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        recognition.stop();
-        console.log("Auto-stopped after 5s of silence");
-      }, 5000);
-    };
+      let finalTranscript = "";
+      let timeoutId: NodeJS.Timeout | null = null;
 
-    recognition.onerror = (err: any) => console.error(err);
+      recognition.onresult = (e: any) => {
+        let interimTranscript = "";
 
-    recognition.onend = () => {
-      console.log("Recognition ended.");
-    };
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interimTranscript += transcript;
+          }
+        }
 
-    recognition.start();
-    recognitionRef.current = recognition;
+        const combined = finalTranscript + interimTranscript;
+        setSpeech(combined.trim());
+
+        // Reset 5s inactivity timer each time speech is detected
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          recognition.stop();
+          console.log("Auto-stopped after 5s of silence");
+        }, 5000);
+      };
+
+      recognition.onerror = (err: any) => console.error(err);
+
+      recognition.onend = () => {
+        console.log("Recognition ended.");
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
 
     } else {
       const token = localStorage.getItem("auth_token");
@@ -240,136 +244,175 @@ export default function Home() {
     if (!token) return alert("No auth token found");
     const profile: any = queryClient.getQueryData(['userProfile']);
 
-     try {
-    // Pre-flight credit check
-    if (!profile) {
-      toast.error("Unable to load profile data");
-      return;
-    }
+    try {
+      // Pre-flight credit check
+      if (!profile) {
+        toast.error("Unable to load profile data");
+        return;
+      }
 
-    if (profile.credits <= 0) {
-      toast.error("No credits remaining!", {
-        description: "Purchase more credits to continue sending emails",
-        action: {
-          label: "Buy Credits",
-          onClick: () => router.push('/profile')
-        }
+      if (profile.credits <= 0) {
+        toast.error("No credits remaining!", {
+          description: "Purchase more credits to continue sending emails",
+          action: {
+            label: "Buy Credits",
+            onClick: () => router.push('/profile')
+          }
+        });
+        return;
+      }
+
+      // Low credit warning
+      if (profile.credits <= 5) {
+        toast.warning(`Only ${profile.credits} credits left!`, {
+          description: "Consider purchasing more credits soon"
+        });
+      }
+
+      // Send email with loading state
+      const loadingToast = toast.loading("Sending email...");
+
+      const response = await axios.post("http://127.0.0.1:5000/send-email", {
+        token,
+        speechText
       });
-      return;
-    }
 
-    // Low credit warning
-    if (profile.credits <= 5) {
-      toast.warning(`Only ${profile.credits} credits left!`, {
-        description: "Consider purchasing more credits soon"
+      toast.dismiss(loadingToast);
+      toast.success("Email sent successfully!", {
+        description: `${profile.credits - 1} credits remaining`
       });
-    }
 
-    // Send email with loading state
-    const loadingToast = toast.loading("Sending email...");
-    
-    const response = await axios.post("http://127.0.0.1:5000/send-email", {
-      token,
-      speechText
-    });
+      // Optimistic update for instant UI feedback
+      queryClient.setQueryData(["userProfile"], (old: any) => ({
+        ...old,
+        credits: old.credits - 1
+      }));
 
-    toast.dismiss(loadingToast);
-    toast.success("Email sent successfully!", {
-      description: `${profile.credits - 1} credits remaining`
-    });
-    
-    // Optimistic update for instant UI feedback
-    queryClient.setQueryData(["userProfile"], (old: any) => ({
-      ...old,
-      credits: old.credits - 1
-    }));
-    
-    // Then invalidate to ensure consistency
-    await queryClient.invalidateQueries({ queryKey: ["userProfile"] });
-    
-    router.push('/profile');
-    
-  } catch (error: any) {
-    console.error("Error sending email:", error);
-    
-    if (error.response?.status === 403) {
-      toast.error("Insufficient credits!", {
-        description: "Your credits have been used up",
-        action: {
-          label: "Buy More",
-          onClick: () => router.push('/profile')
-        }
-      });
-      // Force refetch in case of mismatch
+      // Then invalidate to ensure consistency
       await queryClient.invalidateQueries({ queryKey: ["userProfile"] });
-    } else {
-      toast.error("Failed to send email", {
-        description: error.response?.data?.message || "Please try again"
-      });
+
+      router.push('/profile');
+
+    } catch (error: any) {
+      console.error("Error sending email:", error);
+
+      if (error.response?.status === 403) {
+        toast.error("Insufficient credits!", {
+          description: "Your credits have been used up",
+          action: {
+            label: "Buy More",
+            onClick: () => router.push('/profile')
+          }
+        });
+        // Force refetch in case of mismatch
+        await queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      } else {
+        toast.error("Failed to send email", {
+          description: error.response?.data?.message || "Please try again"
+        });
+      }
     }
-  }
   };
 
   const handleHumanMessage = async () => {
-  const newUserMessage = {
-    id: Date.now(),
-    createdAt: new Date(),
-    userId: 0,
-    role: "user",
-    content: humanInput,
-  };
-
-  // Display user's message immediately
-  setMessages(prev => [...prev, newUserMessage]);
-
-  try {
-    const token = localStorage.getItem("auth_token");
-    setSendingMessage(true);
-
-    const inputMessage = humanInput;
-    setHumanInput("");
-
-    const res = await axios.get("http://127.0.0.1:5000/bot-chat", {
-      params: { human_input: inputMessage, auth_token: token, email: profile.email, name: profile.name  },
-    });
-
-    const botMsg = {
-      id: res.data.botMessage?.id || Date.now(),
-      role: "bot",
-      createdAt: res.data.botMessage?.createdAt 
-        ? new Date(res.data.botMessage.createdAt) 
-        : new Date(),
-      userId: res.data.botMessage?.userId || 0,
-      content: res.data.content, // Bot response text
-    };
-
-    setSendingMessage(false);
-    setMessages(prev => [...prev, botMsg]);
-    queryClient.invalidateQueries({ queryKey: ['messages'] });
-  } catch (error) {
-    console.error(error);
-    setSendingMessage(false);
-    
-    const errorMsg = {
+    const newUserMessage = {
       id: Date.now(),
-      role: "bot",
       createdAt: new Date(),
       userId: 0,
-      content: "Sorry, I encountered an error. Please try again.",
+      role: "user",
+      content: humanInput,
+      analysis: null, // Initially null, will be updated if response comes back with analysis for user message (optional)
     };
-    setMessages(prev => [...prev, errorMsg]);
-  }
+
+    // Display user's message immediately
+    setMessages(prev => [...prev, newUserMessage]);
+
+    // Optimistically update cache to prevent message disappearing
+    queryClient.setQueryData(['messages', 1], (oldData: ChatMessage[] | undefined) => {
+      if (!oldData) return [newUserMessage];
+      return [...oldData, newUserMessage];
+    });
+
+    try {
+      const token = localStorage.getItem("auth_token");
+      setSendingMessage(true);
+
+      const inputMessage = humanInput;
+      setHumanInput("");
+
+      const res = await axios.get("http://127.0.0.1:5000/bot-chat", {
+        params: { human_input: inputMessage, auth_token: token, email: profile.email, name: profile.name },
+      });
+      console.log("Bot response:", res.data);
+      if (res) setRes(res.data)
+      // Initial user message update if needed
+      // The backend returns userMessage object but we already added one optimistically.
+      // If we want analysis on user message too, we'd need to update it.
+      // However, the request is specifically about bot message analysis. I will prioritize bot message.
+
+      const botMsg: ChatMessage = {
+        id: res.data.botMessage?.id || Date.now(),
+        role: "bot",
+        createdAt: res.data.botMessage?.createdAt
+          ? new Date(res.data.botMessage.createdAt)
+          : new Date(),
+        userId: res.data.botMessage?.userId || 0,
+        content: res.data.content, // Bot response text
+        analysis: res.data.analysis, // Add analysis here
+      };
+
+      setSendingMessage(false);
+
+      // Update the last user message with analysis if available from response
+      // optional: if the backend returns userMessage with analysis
+      // But primarily let's add the bot message
+      setMessages(prev => {
+        // Find the last user message and attach analysis if available? 
+        // The user didn't explicitly ask for user message analysis updates, 
+        // but 'botreponse contain the analysis' suggests bot message.
+        // Let's stick to adding bot message with analysis.
+
+        // Double check to ensure we don't add duplicates
+        if (prev.some(m => m.id === botMsg.id)) return prev;
+        return [...prev, botMsg];
+      });
+
+      // Use setQueryData to update the cache manually with the complete message (including analysis)
+      // capable of persisting the analysis in the session without refetching from DB immediately.
+      queryClient.setQueryData(['messages', 1], (oldData: ChatMessage[] | undefined) => {
+        if (!oldData) return [botMsg];
+        // Check for duplicates in cache too
+        if (oldData.some(m => m.id === botMsg.id)) return oldData;
+        return [...oldData, botMsg];
+      });
+
+      // We do NOT invalidate queries here because the DB might not have the analysis data yet (or at all),
+      // and refetching would overwrite our localized full data with incomplete data.
+      // queryClient.invalidateQueries({ queryKey: ['messages'] });
+    } catch (error) {
+      console.error(error);
+      setSendingMessage(false);
+
+      const errorMsg = {
+        id: Date.now(),
+        role: "bot",
+        createdAt: new Date(),
+        userId: 0,
+        content: "Sorry, I encountered an error. Please try again.",
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    }
   };
 
   const token =
-  typeof window !== "undefined"
-    ? localStorage.getItem("auth_token")
-    : null;
+    typeof window !== "undefined"
+      ? localStorage.getItem("auth_token")
+      : null;
 
   const { data: initialData, isLoading, error, isFetching } = useQuery({
     queryKey: ['messages', 1], // Always fetch page 1
-    queryFn: () => getUserMessages(token, 1),
-    enabled: !!token, 
+    queryFn: () => getUserMessages(token as string, 1),
+    enabled: !!token,
     staleTime: 15 * 60 * 1000, // Cache for 15 minutes
     gcTime: 30 * 60 * 1000, // Keep in memory for 30 minutes
     retry: 1,
@@ -377,7 +420,7 @@ export default function Home() {
     refetchOnMount: true, // Will use cache if available on mount
   });
 
-   console.log({
+  console.log({
     isLoading,   // false if cache exists
     isFetching,  // false if within staleTime
     hasData: !!initialData,
@@ -395,7 +438,7 @@ export default function Home() {
   const handleScroll = async () => {
     const box = chatRef.current;
     if (!box || isLoading) return;
-  
+
     if (box.scrollTop === 0) {
       const previousHeight = box.scrollHeight;
       const nextPage = page + 1;
@@ -405,9 +448,9 @@ export default function Home() {
       try {
         // Check cache first
         const cachedOlderMessages = queryClient.getQueryData<ChatMessage[]>(['messages', nextPage]);
-        
+
         let older: ChatMessage[];
-        
+
         if (cachedOlderMessages) {
           // ✅ Use cached data
           console.log('✅ Using cached page:', nextPage);
@@ -421,12 +464,12 @@ export default function Home() {
             staleTime: 15 * 60 * 1000,
           });
         }
-    
+
         if (older.length === 0) return; // No more messages
-    
+
         setMessages(prev => [...older, ...prev]);
         setPage(nextPage);
-    
+
         setTimeout(() => {
           box.scrollTop = box.scrollHeight - previousHeight;
         }, 0);
@@ -445,74 +488,81 @@ export default function Home() {
   }).length || 0;
 
 
-    useEffect(() => {
+  useEffect(() => {
     const saved = localStorage.getItem('design_preference');
     if (saved) setIsNewDesign(saved === 'chat');
-    }, []);
+  }, []);
 
-    const toggleDesign = () => {
-      const newValue = !isNewDesign;
-      setIsNewDesign(newValue);
-      localStorage.setItem('design_preference', newValue ? 'chat' : 'classic');
-    };
+  const toggleDesign = () => {
+    const newValue = !isNewDesign;
+    setIsNewDesign(newValue);
+    localStorage.setItem('design_preference', newValue ? 'chat' : 'classic');
+  };
 
-    return (
+  console.log(messages, "messages here");
+
+  return (
     <div className="bg-gray-50">
-      {/* Header - Placeholder for your HeaderPage component */}
-      <HeaderPage/>
-    <button
-      onClick={toggleDesign}
-      className="text-white fixed bottom-6 left-6 z-50 p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-sm shadow-lg hover:scale-110 transition-transform flex items-center justify-center group"
-    >
-      {isNewDesign ? "Old Design" : "New Design"}
-    </button>
+      <button
+        onClick={toggleDesign}
+        className="text-white fixed bottom-6 left-6 z-50 p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-sm shadow-lg hover:scale-110 transition-transform flex items-center justify-center group"
+      >
+        {isNewDesign ? "Old Design" : "New Design"}
+      </button>
 
-    {/* Design Switch */}
-    {isNewDesign ? (
-      <ChatDesign
-            profile={profile}
-            isGmailConnected={isGmailConnected}
-            onConnectGmail={handleConnectGmail}
-            onSendEmail={handleSendingGmail}
-            onStartListening={handleStartListening}
-            onStopListening={stopListening}
-            speech={speech}
-            setSpeech={setSpeech}
-            recentEmails={recentEmails}
-            messages={messages}
-            setMessages={setMessages}
-            humanInput={humanInput}
-            setHumanInput={setHumanInput}
-            handleHumanMessage={handleHumanMessage}
-            sendingMessage={sendingMessage}
-            chatEndRef={chatEndRef}
-            isLoading={false}
-          />
-        ) : (
-          <ClassicDesign
-            profile={profile}
-            isGmailConnected={isGmailConnected}
-            onConnectGmail={handleConnectGmail}
-            onSendEmail={handleSendingGmail}
-            onStartListening={handleStartListening}
-            speech={speech}
-            recentEmails={recentEmails}
-            NeuralNetworkButton={NeuralNetworkButton}
-            PhantomStatsBar={PhantomStatsBar}
-            router={router}
-            isLoading={false}
-          />
-    )}
+      {/* Design Switch */}
+      {isNewDesign ? (
+        <ChatDesign
+          profile={profile}
+          isGmailConnected={isGmailConnected}
+          onConnectGmail={handleConnectGmail}
+          analysis={res}
+          onSendEmail={handleSendingGmail}
+          onStartListening={handleStartListening}
+          onStopListening={stopListening}
+          speech={speech}
+          setSpeech={setSpeech}
+          recentEmails={recentEmails}
+          messages={messages}
+          setMessages={setMessages}
+          humanInput={humanInput}
+          setHumanInput={setHumanInput}
+          handleHumanMessage={handleHumanMessage}
+          sendingMessage={sendingMessage}
+          chatEndRef={chatEndRef}
+          isLoading={false}
+        />
+      ) : (
+        <ClassicDesign
+          profile={profile}
+          isGmailConnected={isGmailConnected}
+          onConnectGmail={handleConnectGmail}
+          onSendEmail={handleSendingGmail}
+          onStartListening={handleStartListening}
+          speech={speech}
+          recentEmails={recentEmails}
+          NeuralNetworkButton={NeuralNetworkButton}
+          PhantomStatsBar={PhantomStatsBar}
+          router={router}
+          isLoading={false}
+        />
+      )}
 
       {/* Chat Support */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-0 right-0 z-50">
         {!isChatOpen ? (
           <button
             onClick={() => setIsChatOpen(true)}
-            className="w-16 h-16 bg-purple-600 rounded-full shadow-lg hover:scale-110 transition-transform flex items-center justify-center"
+            className="hover:scale-110 transition-transform flex items-center justify-center"
           >
-            <MessageCircle className="text-white" size={28} />
+            <Lottie
+            animationData={chatAnimation}
+            loop={true}
+            autoplay={true}
+            className="w-36 h-36"
+          />
           </button>
+
         ) : (
           <div className="bg-white rounded-2xl shadow-2xl w-[390px] h-[480px] flex flex-col border-2 border-gray-200">
             <div className="bg-[#cc39f5] text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
@@ -540,11 +590,10 @@ export default function Home() {
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[70%] px-4 py-3 rounded-2xl ${
-                      msg.role === "user"
-                        ? "bg-[#cc39f5] text-white rounded-br-sm"
-                        : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
-                    }`}
+                    className={`max-w-[70%] px-4 py-3 rounded-2xl ${msg.role === "user"
+                      ? "bg-[#cc39f5] text-white rounded-br-sm"
+                      : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
+                      }`}
                   >
                     <p className="text-sm">{msg.content}</p>
                   </div>
@@ -582,3 +631,5 @@ export default function Home() {
     </div>
   );
 }
+
+
